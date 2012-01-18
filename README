@@ -1,0 +1,21 @@
+The most effective Django realization of incremental fields. My synthetic tests gives up to x30-x60 optimization.
+It uses redis cache so you need to install Redis and Pyhton redis driver.
+
+Best suitable for fields:
+- Comments count
+- Record rating
+- Number of views
+- Statistic counters
+- Other counters
+
+Usage example:
+
+#models.py
+from incrementals.decorators import IncrementalManager
+
+class ExampleModel(models.Model):
+    field = models.IntegerField(primary_key=True)
+
+    #this is for incrementals:
+    objects = IncrementalManager()
+    incremental = ['downloads', 'rating']
