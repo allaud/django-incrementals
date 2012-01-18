@@ -86,7 +86,7 @@ class IncrementalManager(models.Manager):
             fluct = settings.INCREMENTALS_FLUCTUATION
         else:
             fluct = 5
-        if value>3:
+        if value>fluct:
             obj = obj.__class__.objects.get(pk=id)
             obj.save()
             settings.REDIS.set(_key(obj, field), 0)
