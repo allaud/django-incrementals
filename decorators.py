@@ -78,19 +78,33 @@ class IncrementalQuerySet(QuerySet):
             yield obj
 
 class IncrementalManager(models.Manager):
-    def increment(self, id, field=''):
+    def increment(self, id, field='', val=1):
         from django.db.models import F
         obj = self.model(pk=id)
-        value = settings.REDIS.incr(_key(obj, field))
-        if settings.INCREMENTALS_FLUCTUATION is not Null:
+        value = 0
+        key = _key(obj, field)
+        
+        def atom_increment(pipe):
+            key_val = pipe.get(key)
+            value = int(key_val) if key_val is not None else 0
+            value = value+val
+            pipe.multi()
+            if value>fluct or value<-fluct:
+                pipe.set(key, 0)
+                obj = obj.__class__.objects.get(pk=id)
+                setattr(obj, field, getattr(obj, field)+value)
+                obj.save()
+            else:
+                pipe.set(key, value)
+        
+        if settings.INCREMENTALS_FLUCTUATION is not None:
             fluct = settings.INCREMENTALS_FLUCTUATION
         else:
             fluct = 5
-        if value>fluct:
-            obj = obj.__class__.objects.get(pk=id)
-            obj.save()
-            settings.REDIS.set(_key(obj, field), 0)
             
+        settings.REDIS.transaction(atom_increment, key)
+        
+        return value
 
     def get_query_set(self):
         return IncrementalQuerySet(self.model)
